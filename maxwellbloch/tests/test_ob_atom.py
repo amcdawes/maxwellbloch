@@ -5,11 +5,18 @@ Thomas Ogden <t@ogden.eu>
 
 """
 
+import sys
+import os
+
 import unittest
 
 from maxwellbloch import ob_atom
 
-json_str_02 = ('{'
+# Absolute path of tests/json directory, so that tests can be called from
+# different directories.
+JSON_DIR = os.path.abspath(os.path.join(__file__, '../', 'json'))
+
+JSON_STR_02 = ('{'
                '  "decays": ['
                '    {'
                '      "channels": ['
@@ -66,19 +73,18 @@ json_str_02 = ('{'
                '      "label": "coupling",'
                '      "rabi_freq": 10.0,'
                '      "rabi_freq_t_args": {'
-               '        "ampl_1": 1.0,'
-               '        "off_1": 0.7,'
-               '        "on_1": 0.3'
+               '        "ampl": 1.0,'
+               '        "off": 0.7,'
+               '        "on": 0.3'
                '      },'
-               '      "rabi_freq_t_func": "square_1"'
+               '      "rabi_freq_t_func": "square"'
                '    }'
                '  ],'
                '  "num_states": 3'
                '}')
 
-class TestInit(unittest.TestCase):
 
-    ob_atom_02 = ob_atom.OBAtom.from_json_str(json_str_02)
+class TestInit(unittest.TestCase):
 
     def test_init_default(self):
         """  Test Default Initialise """ 
@@ -89,6 +95,11 @@ class TestInit(unittest.TestCase):
         self.assertEqual(ob_atom_00.energies, [])
         self.assertEqual(ob_atom_00.decays, [])
         self.assertEqual(ob_atom_00.fields, [])
+
+
+class TestJSON(unittest.TestCase):
+
+    ob_atom_02 = ob_atom.OBAtom.from_json_str(JSON_STR_02)
 
     def test_to_from_json_str(self):
 
@@ -109,9 +120,7 @@ class TestInit(unittest.TestCase):
 
     def test_to_from_json(self):
 
-        import os
-
-        filepath = "test_ob_atom_02.json"
+        filepath = os.path.join(JSON_DIR, "test_ob_atom_02.json")
 
         self.ob_atom_02.to_json(filepath)
 
@@ -121,6 +130,12 @@ class TestInit(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(self.ob_atom_02.to_json_str(),
                          ob_atom_03.to_json_str())
+
+    def test_from_json_file_02(self):
+
+        json_path = os.path.join(JSON_DIR, "ob_atom_02.json")
+
+        oba = ob_atom.OBAtom().from_json(json_path)
 
 class TestGetFieldSumCoherence(unittest.TestCase):
 
@@ -137,7 +152,7 @@ class TestGetFieldSumCoherence(unittest.TestCase):
     @unittest.skip("states_t() is not initialised so this doesn't work.")    
     def test_initial_condition(self):
 
-        ob_atom_02 = ob_atom.OBAtom.from_json_str(json_str_02)        
+        ob_atom_02 = ob_atom.OBAtom.from_json_str(JSON_STR_02)        
 
         self.assertEqual(ob_atom_02.get_field_sum_coherence(0)[0], 0j)
 

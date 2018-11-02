@@ -11,51 +11,66 @@ from maxwellbloch import ob_base, field, t_funcs
 
 class OBAtom(ob_base.OBBase):
 
-    def __init__(self, num_states=1, energies=[], decays=[], fields=[]):
+    def __init__(self, label=None, num_states=1, energies=[], decays=[], 
+        fields=[]):
+        """ Initialise OBAtom. 
+
+        Args:
+            label: string label describing the atom-field object.
+            num_states: 
+            energies: absolute or relative energy levels of the states.
+            decays: list of dicts representing decays.
+            e.g.
+            [ { "rate": 1.0, "channels": [[0,1]] }
+              { "rate": 2.0, "channels": [[2,1], [3,1]] } ]
+            fields: list of Field objects that couple atom states.
+        """
 
         super().__init__()
 
+        self.label = label
         self.num_states = num_states
         self.energies = energies
         self.decays = decays
 
         self.build_fields(fields)
-
-        self.build_H_0(energies)
-        self.build_c_ops(decays)
-
-        self.build_H_Delta()
-        self.build_H_Omega()
-
+        self.build_operators()
+        
         self.init_rho()
 
     def __repr__(self):
-        return ("Atom(num_states={0}, " +
-                "energies={1}, " +
-                "decays={2}, " +
-                "fields={3})").format(self.num_states,
-                                      self.energies,
-                                      self.decays,
-                                      self.fields)
+        return ("Atom(label={0}, " + "num_states={1}, " + "energies={2}, " +
+            "decays={3}, " + "fields={4})").format(self.label, self.num_states,
+            self.energies, self.decays, self.fields)
 
     def add_field(self, field_dict):
+        """ Add a Field to the list given a dict representing the field. """ 
+
         self.fields.append(field.Field(**field_dict))
 
     def build_fields(self, field_dicts):
+        """ Build the field list given a list of dicts representing fields. """
+
         self.fields = []
         for f in field_dicts:
             self.add_field(f)
         return self.fields
 
-    def build_H_0(self, energies=[]):
-        """ Takes a list of energies and makes a Bare Hamiltonian with the
-        energies as diagonals.
+    def build_operators(self):
+        """ Build the quantum operators representing the bare Hamiltonian,
+            collapse operators and interaction Hamiltonian.
+        """
+
+        self.build_H_0()
+        self.build_c_ops()
+        self.build_H_Delta()
+        self.build_H_Omega()
+
+    def build_H_0(self):
+        """ Makes a Bare Hamiltonian with the energies as diagonals.
 
         Leave the list empty for all zero energies (i.e. if you don't care
         about absolute energies.)
-
-        Args:
-            energies: list of pre-interaction energies
 
         Returns:
             H_0 = [energies[0]             0  ...]
@@ -64,37 +79,38 @@ class OBAtom(ob_base.OBBase):
 
         """
 
-        if energies:
-            H_0 = np.diag(np.array(energies))
+        if self.energies:
+            H_0 = np.diag(np.array(self.energies))
         else:
             H_0 = np.zeros([self.num_states, self.num_states])
 
         self.H_0 = qu.Qobj(H_0)
         return self.H_0
 
-    def build_c_ops(self, decays=[]):
-        """ Takes a list of spontaneous decay rates and makes a list of
-        collapse operators to be passed to the solver.
+    def build_c_ops(self):
+        """ Takes the list of decays and makes a list of collapse operators to
+            be passed to the solver.
 
-        Args:
-            decays: list of dicts representing decays.
-            e.g.
-            [ { "rate": 1.0, "channels": [[0,1]] }
-              { "rate": 2.0, "channels": [[2,1], [3,1]] } ]
+        Notes:
+            We want at least one collapse operator to force the master equation
+            solver to produce density matrices, not state vectors. In the case
+            that self.decays is empty, we'll add a zero collapse operator.
         """
 
         self.c_ops = []
 
-        for d in decays:
-            r = d["rate"]
-            for c in d["channels"]:
-                self.c_ops.append(np.sqrt(2 * pi * r) * self.sigma(c[0], c[1]))
+        if not self.decays:
+            self.c_ops.append(qu.Qobj(np.zeros([self.num_states,
+                self.num_states])))
+        else:
+            for d in self.decays:
+                r = d["rate"]
+                for c in d["channels"]:
+                    self.c_ops.append(np.sqrt(2*pi*r)*self.sigma(c[0], c[1]))
+
         return self.c_ops
 
     def build_H_Delta(self):
-
-        # TODO: check fields has been built.
-        # TODO: Shouldn't this be in build fields?
 
         self.H_Delta = qu.Qobj(np.zeros([self.num_states, self.num_states]))
 
@@ -109,9 +125,14 @@ class OBAtom(ob_base.OBBase):
         return self.H_Delta
 
     def set_H_Delta(self, detunings):
+        """ Set the detuning part of the interaction Hamiltonian, H_Delta,
+            given a list of detunings.
+
+        Args: 
+            detunings: list of floats: detunings of each field in the list
         """
-        TODO: assert len(detunings) == len(fields)
-        """
+
+        assert(len(detunings) == len(self.fields))
 
         for i, f in enumerate(self.fields):
             f.detuning = detunings[i]
@@ -138,7 +159,8 @@ class OBAtom(ob_base.OBBase):
 
             for c in f.coupled_levels:
                 H_Omega += self.sigma(c[0], c[1]) + self.sigma(c[1], c[0])
-                H_Omega *= pi * f.rabi_freq  # 2π*rabi_freq/2
+
+            H_Omega *= pi * f.rabi_freq  # 2π*rabi_freq/2
 
             if self.is_field_td():  # time-dependent interaction
                 self.H_Omega_list.append([H_Omega, f.rabi_freq_t_func])
@@ -161,8 +183,9 @@ class OBAtom(ob_base.OBBase):
 
         for f_i, f in enumerate(self.fields):
             f.rabi_freq = rabi_freqs[f_i]
-            f.rabi_freq_t_func = getattr(t_funcs, rabi_freq_t_funcs[f_i])
-            f.rabi_freq_t_args = rabi_freq_t_args[f_i]
+
+            f.build_rabi_freq_t_func(rabi_freq_t_funcs[f_i], f_i)
+            f.build_rabi_freq_t_args(rabi_freq_t_args[f_i], f_i)
 
         return self.build_H_Omega()
 
@@ -215,7 +238,8 @@ class OBAtom(ob_base.OBBase):
 
     def get_json_dict(self):
 
-        json_dict = {"num_states": self.num_states,
+        json_dict = {"label": self.label,
+                     "num_states": self.num_states,
                      "energies": self.energies,
                      "decays": self.decays,
                      "fields": [f.get_json_dict() for f in self.fields]}
@@ -251,7 +275,7 @@ class OBAtom(ob_base.OBBase):
 def main():
 
     print(OBAtom())
-
+    return 0
 
 if __name__ == '__main__':
     status = main()

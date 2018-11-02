@@ -6,224 +6,17 @@ Thomas Ogden <t@ogden.eu>
 """
 
 import sys
+import os
 
 import unittest
 
 import numpy as np
 
-from maxwellbloch import mb_solve
+from maxwellbloch import mb_solve, t_funcs
 
-json_str_01 = (
-'{'
-'  "ob_atom": {'
-'    "decays": ['
-'      { "channels": [[0,1]], '
-'        "rate": 0.0'
-'      }'
-'    ],'
-'    "energies": [],'
-'    "fields": ['
-'      {'
-'        "coupled_levels": [[0, 1]],'
-'        "detuning": 0.0,'
-'        "detuning_positive": true,'
-'        "label": "probe",'
-'        "rabi_freq": 0.01,'
-'        "rabi_freq_t_args": {'
-'           "ampl_1": 1.0,'
-'           "centre_1": 0.0, '
-'           "fwhm_1": 0.1'
-'        },'
-'        "rabi_freq_t_func": "gaussian_1"'
-'      }'
-'    ],'
-'    "num_states": 2'
-'  },'
-''
-'  "t_min": 0.0,'
-'  "t_max": 1.0,'
-'  "t_steps": 100,'
-''
-'  "z_min": -0.2,'
-'  "z_max": 1.2,'
-'  "z_steps": 4,'
-'  "z_steps_inner": 1,'
-''
-'  "num_density_z_func": "square_1",'
-'  "num_density_z_args": { '
-'    "on_1":0.0, '
-'    "off_1":1.0,'
-'    "ampl_1": 1.0e0'
-'  },'
-'  "interaction_strengths": [1.0],'
-''
-'  "velocity_classes": {'
-'    "thermal_delta_min": -1.0,'
-'    "thermal_delta_max":  1.0,'
-'    "thermal_delta_steps": 2,'
-'    "thermal_delta_inner_min": 0.0,'
-'    "thermal_delta_inner_max": 0.0,'
-'    "thermal_delta_inner_steps": 0,'
-'    "thermal_width": 1.0'
-'  },'
-''
-'  "method": "mesolve",'
-'  "opts": {},'
-''
-'  "savefile": "json_str_01"'
-''
-'}')
-
-json_str_lamda = (
-'{'
-'  "ob_atom": {'
-'    "decays": ['
-'      {'
-'        "channels": ['
-'          ['
-'            0,'
-'            1'
-'          ],'
-'          ['
-'            1,'
-'            2'
-'          ]'
-'        ],'
-'        "rate": 1.0'
-'      }'
-'    ],'
-'    "energies": [],'
-'    "fields": ['
-'      {'
-'        "coupled_levels": ['
-'          ['
-'            0,'
-'            1'
-'          ]'
-'        ],'
-'        "detuning": 0.0,'
-'        "detuning_positive": true,'
-'        "label": "probe",'
-'        "rabi_freq": 0.1,'
-'        "rabi_freq_t_args": {'
-'          "ampl_1": 1.0,'
-'          "centre_1": 0.0,'
-'          "fwhm_1": 0.1'
-'        },'
-'        "rabi_freq_t_func": "gaussian_1"'
-'      },'
-'      {'
-'        "coupled_levels": ['
-'          ['
-'            1,'
-'            2'
-'          ]'
-'        ],'
-'        "detuning": 0.0,'
-'        "detuning_positive": false,'
-'        "label": "coupling",'
-'        "rabi_freq": 10.0,'
-'        "rabi_freq_t_args": {'
-'          "ampl_2": 1.0,'
-'          "on_2": 0.0,'
-'          "off_2": 1.0'
-'        },'
-'        "rabi_freq_t_func": "square_2"'
-'      }'
-'    ],'
-'    "num_states": 3'
-'  },'
-'  "t_min": 0.0,'
-'  "t_max": 1.0,'
-'  "t_steps": 100,'
-'  "z_min": -0.2,'
-'  "z_max": 1.2,'
-'  "z_steps": 20,'
-'  "z_steps_inner": 2,'
-'  "num_density_z_func": "square_1",'
-'  "num_density_z_args": {'
-'    "on_1": 0.0,'
-'    "off_1": 1.0,'
-'    "ampl_1": "1.0e3"'
-'  },'
-'  "interaction_strengths": ['
-'    1.0'
-'  ],'
-'  "velocity_classes": {'
-'    "thermal_delta_min": -5.0,'
-'    "thermal_delta_max": 5.0,'
-'    "thermal_delta_steps": 4,'
-'    "thermal_delta_inner_min": 0.0,'
-'    "thermal_delta_inner_max": 0.0,'
-'    "thermal_delta_inner_steps": 0,'
-'    "thermal_width": 1.0'
-'  },'
-'  "method": "mesolve",'
-'  "opts": {},'
-'  "savefile": null'
-'}')
-
-json_no_atoms = (
-'{'
-''
-'  "ob_atom": {'
-'    "decays": ['
-'      { "channels": [[0,1]], '
-'        "rate": 0.0'
-'      }'
-'    ],'
-'    "energies": [],'
-'    "fields": ['
-'      {'
-'        "coupled_levels": [[0, 1]],'
-'        "detuning": 0.0,'
-'        "detuning_positive": true,'
-'        "label": "probe",'
-'        "rabi_freq": 5.0,'
-'        "rabi_freq_t_args": { '
-'          "ampl_1": 1.0,'
-'          "centre_1": 0.0,  '
-'          "fwhm_1": 0.1 '
-'        },'
-'        "rabi_freq_t_func": "gaussian_1"'
-'      }'
-'    ],'
-'    "num_states": 2'
-'  },'
-''
-'  "t_min": -0.5,'
-'  "t_max": 1.0,'
-'  "t_steps": 100,'
-''
-'  "z_min": -0.2,'
-'  "z_max": 1.2,'
-'  "z_steps": 4,'
-'  "z_steps_inner": 1,'
-''
-'  "num_density_z_func": "square_1",'
-'  "num_density_z_args": { '
-'    "on_1": 0.0, '
-'    "off_1":1.0,'
-'    "ampl_1": 0.0'
-'  },'
-'  "interaction_strengths": [1.0],'
-''
-'  "velocity_classes": {'
-'    "thermal_delta_min": 0.0,'
-'    "thermal_delta_max": 0.0,'
-'    "thermal_delta_steps": 0,'
-'    "thermal_delta_inner_min": 0.0,'
-'    "thermal_delta_inner_max": 0.0,'
-'    "thermal_delta_inner_steps": 0,'
-'    "thermal_width": 1.0'
-'  },'
-''
-'  "method": "mesolve",'
-'  "opts": {},'
-''
-'  "savefile": null'
-'}'
-)
+# Absolute path of tests/json directory, so that tests can be called from
+# different directories.
+JSON_DIR = os.path.abspath(os.path.join(__file__, '../', 'json'))
 
 class TestInit(unittest.TestCase):
 
@@ -232,21 +25,22 @@ class TestInit(unittest.TestCase):
 
         mb_solve_00 = mb_solve.MBSolve()
 
-        self.assertEqual(mb_solve_00.ob_atom.num_states, 1)
+        self.assertEqual(mb_solve_00.atom.num_states, 1)
 
         # TODO: And the rest!
 
     def test_init_00(self):
 
-        mb_solve_00 = mb_solve.MBSolve().from_json_str(json_str_01)
-        # print(mb_solve_00)
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mb_solve_01 = mb_solve.MBSolve().from_json(json_path)
 
 @unittest.skip("TODO")
 class TestSolveOverThermalDetunings(unittest.TestCase):
 
     def test_00(self):
 
-        mb_solve_00 = mb_solve.MBSolve().from_json_str(json_str_01)
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mb_solve_00 = mb_solve.MBSolve().from_json(json_path)
 
         result_Delta = mb_solve_00.solve_over_thermal_detunings()
 
@@ -255,11 +49,11 @@ class TestSolveOverThermalDetunings(unittest.TestCase):
 
 class TestMBSolve(unittest.TestCase):
 
-    # @unittest.skip("Testing others")
     def test_mb_solve(self):
         """ Basic test of mb_solve method. """
 
-        mb_solve_00 = mb_solve.MBSolve().from_json_str(json_str_01)
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mb_solve_00 = mb_solve.MBSolve().from_json(json_path)
 
         mb_solve_00.mbsolve()
 
@@ -267,70 +61,9 @@ class TestMBSolve(unittest.TestCase):
         """ Setting the number density ampl to 0.0, i.e. no atoms. The end
             pulse should be the same as the start. """
 
-        json_no_atoms = (
-            '{'
-            ''
-            '  "ob_atom": {'
-            '    "decays": ['
-            '      { "channels": [[0,1]], '
-            '        "rate": 0.0'
-            '      }'
-            '    ],'
-            '    "energies": [],'
-            '    "fields": ['
-            '      {'
-            '        "coupled_levels": [[0, 1]],'
-            '        "detuning": 0.0,'
-            '        "detuning_positive": true,'
-            '        "label": "probe",'
-            '        "rabi_freq": 5.0,'
-            '        "rabi_freq_t_args": { '
-            '          "ampl_1": 1.0,'
-            '          "centre_1": 0.0,  '
-            '          "fwhm_1": 0.1 '
-            '        },'
-            '        "rabi_freq_t_func": "gaussian_1"'
-            '      }'
-            '    ],'
-            '    "num_states": 2'
-            '  },'
-            ''
-            '  "t_min": -0.5,'
-            '  "t_max": 1.0,'
-            '  "t_steps": 100,'
-            ''
-            '  "z_min": -0.2,'
-            '  "z_max": 1.2,'
-            '  "z_steps": 4,'
-            '  "z_steps_inner": 1,'
-            ''
-            '  "num_density_z_func": "square_1",'
-            '  "num_density_z_args": { '
-            '    "on_1": 0.0, '
-            '    "off_1":1.0,'
-            '    "ampl_1": 0.0'
-            '  },'
-            '  "interaction_strengths": [1.0],'
-            ''
-            '  "velocity_classes": {'
-            '    "thermal_delta_min": 0.0,'
-            '    "thermal_delta_max": 0.0,'
-            '    "thermal_delta_steps": 0,'
-            '    "thermal_delta_inner_min": 0.0,'
-            '    "thermal_delta_inner_max": 0.0,'
-            '    "thermal_delta_inner_steps": 0,'
-            '    "thermal_width": 1.0'
-            '  },'
-            ''
-            '  "method": "mesolve",'
-            '  "opts": {},'
-            ''
-            '  "savefile": "json_no_atoms"'
-            '}'
-        )
+        json_path = os.path.join(JSON_DIR, "mb_solve_no_atoms.json")
 
-        mbs = \
-            mb_solve.MBSolve().from_json_str(json_no_atoms)
+        mbs = mb_solve.MBSolve().from_json(json_path)
 
         mbs.mbsolve(step='euler')
 
@@ -341,7 +74,85 @@ class TestMBSolve(unittest.TestCase):
         self.assertTrue(np.allclose(mbs.Omegas_zt[:, 0, :],
                                     mbs.Omegas_zt[:, -1, :], rtol=1.0e-6))
 
-        # self.assertEqual(mbs.Omegas_zt[:,0,:], mbs.Omegas_zt[:,-1,:])
+    def test_no_atoms_ab(self):
+        """ Setting the number density to 0.0, i.e. no atoms, with AB step. """
+
+        json_path = os.path.join(JSON_DIR, "mb_solve_no_atoms.json")
+
+        mbs = mb_solve.MBSolve().from_json(json_path)
+
+        mbs.mbsolve(step='ab')
+
+        # Check that the field at the end of the medium matches the field
+        # at the start of the medium.
+        self.assertTrue(np.allclose(mbs.Omegas_zt[:, 0, :],
+                                    mbs.Omegas_zt[:, -1, :], rtol=1.0e-6))
+
+    def test_no_decays(self):
+        """ Empty decay list. """
+
+        json_path = os.path.join(JSON_DIR, "mb_solve_no_decays.json")
+
+        mb_solve_nd = mb_solve.MBSolve().from_json(json_path)
+
+        mb_solve_nd.mbsolve()
+
+    def test_no_rabi_freq_t_func(self):
+        """ Empty decay list. """
+
+        json_path = os.path.join(JSON_DIR, "mb_solve_no_rabi_freq_t_func.json")
+        mbs = mb_solve.MBSolve().from_json(json_path)
+
+        # self.assertEqual(mbs.ob_atom.fields[0].rabi_freq_t_func,
+            # t_funcs.square_1)
+        self.assertDictEqual(mbs.atom.fields[0].rabi_freq_t_args,
+                             {"ampl_0": 1.0, "on_0": 0.0, "off_0": 1.0})
+
+    def test_no_vel_classes(self):
+        """ Empty velocity class dict. """
+
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mbs = mb_solve.MBSolve().from_json(json_path)
+
+        vc = {}
+
+        mbs.build_velocity_classes(vc)
+        mbs.mbsolve()
+
+    def test_no_vel_classes_inner(self):
+        """ No inner delta values in dict. """
+
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mbs = mb_solve.MBSolve().from_json(json_path)
+
+        vc = {
+            "thermal_delta_min": -1.0,
+            "thermal_delta_max": 1.0,
+            "thermal_delta_steps": 2,
+            "thermal_width": 1.0
+        }
+
+        mbs.build_velocity_classes(vc)
+        mbs.mbsolve()
+
+    def test_zero_thermal_width(self):
+
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mbs = mb_solve.MBSolve().from_json(json_path)
+
+        vc = {
+            "thermal_delta_min": -1.0,
+            "thermal_delta_max": 1.0,
+            "thermal_delta_steps": 2,
+            "thermal_delta_inner_min": 0.0,
+            "thermal_delta_inner_max": 0.0,
+            "thermal_delta_inner_steps": 0,
+            "thermal_width": 0.0
+        }
+
+        self.assertRaises(ValueError, mbs.build_velocity_classes, vc)
+
+        mbs.mbsolve()
 
 class TestSaveLoad(unittest.TestCase):
     """ Tests for the MBSolve save and load methods. """
@@ -352,7 +163,8 @@ class TestSaveLoad(unittest.TestCase):
             file and check that they equal the original values.
         """
 
-        mb_solve_01 = mb_solve.MBSolve().from_json_str(json_str_01)
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mb_solve_01 = mb_solve.MBSolve().from_json(json_path)
 
         Omegas_zt, states_zt = mb_solve_01.mbsolve()
 
@@ -371,7 +183,8 @@ class TestSaveLoad(unittest.TestCase):
 
     def test_save_load_no_recalc(self):
 
-        mb_solve_01 = mb_solve.MBSolve().from_json_str(json_str_01)
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mb_solve_01 = mb_solve.MBSolve().from_json(json_path)
 
         Omegas_zt, states_zt = mb_solve_01.mbsolve()
 
@@ -388,13 +201,6 @@ class TestSaveLoad(unittest.TestCase):
         self.assertTrue((Omegas_zt == Omegas_zt_loaded).all())
         self.assertTrue((states_zt == states_zt_loaded).all())
 
-    def test_no_atoms_ab(self):
-
-        mbs = \
-            mb_solve.MBSolve().from_json_str(json_no_atoms)
-
-        mbs.mbsolve(step='ab')
-
 class TestBuildZlist(unittest.TestCase):
 
     def test_00(self):
@@ -405,37 +211,25 @@ class TestBuildZlist(unittest.TestCase):
 
         self.assertTrue(np.allclose(mb_solve_00.zlist, zlist, rtol=1.0e-6))
 
-class TestInsertFirstInnerZStep(unittest.TestCase):
-
-    def test_00(self):
-
-        mb_solve_00 = mb_solve.MBSolve()
-
-        zlist = np.array([0., .05, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1.])
-
-        self.assertFalse(len(mb_solve_00.zlist) == len(zlist))
-
-        mb_solve_00.insert_first_inner_z_step()
-
-        self.assertTrue(np.allclose(mb_solve_00.zlist, zlist, rtol=1.0e-6))
-
 class TestGetOmegasIntpTFuncs(unittest.TestCase):
     """ Unit tests of the get_Omegas_intp_t_funcs method """
     def test_one_field(self):
         """ For the case of a single field """
 
-        mb_solve_00 = mb_solve.MBSolve().from_json_str(json_str_01)
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mb_solve_00 = mb_solve.MBSolve().from_json(json_path)
 
         self.assertEqual(mb_solve_00.get_Omegas_intp_t_funcs(),
-                         ['intp_1'])
+                         ['intp'])
 
     def test_two_fields(self):
         """ For the case of two fields """
 
-        mb_solve_lamda = mb_solve.MBSolve().from_json_str(json_str_lamda)
+        json_path = os.path.join(JSON_DIR, "mb_solve_lamda.json")
+        mb_solve_lamda = mb_solve.MBSolve().from_json(json_path)
 
         self.assertEqual(mb_solve_lamda.get_Omegas_intp_t_funcs(),
-                         ['intp_1', 'intp_2'])
+                         ['intp', 'intp'])
 
 class TestGetOmegasIntpTArgs(unittest.TestCase):
     """ Unit tests of the get_Omegas_intp_t_args method """
@@ -443,7 +237,8 @@ class TestGetOmegasIntpTArgs(unittest.TestCase):
     def test_one_field(self):
         """ For the case of a single field """
 
-        mb_solve_00 = mb_solve.MBSolve().from_json_str(json_str_01)
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mb_solve_00 = mb_solve.MBSolve().from_json(json_path)
 
         Omegas_z =  mb_solve_00.Omegas_zt[:, 0, :]
 
@@ -451,35 +246,15 @@ class TestGetOmegasIntpTArgs(unittest.TestCase):
 
         self.assertEqual(len(t_args), 1)
 
-        self.assertTrue(np.all(t_args[0]['tlist_1'] == mb_solve_00.tlist))
-        self.assertTrue(np.all(t_args[0]['ylist_1'] == Omegas_z/(2.0*np.pi)))
-
-class TestTlistFixedFrame(unittest.TestCase):
-    """ Unit tests of the tlist_fixed_frame method. """
-
-    def test_tlist_fixed_frame(self):
-        """ When the speed of light is 1.5, for t_max = 1.0 and z_max = 1.0,
-            the t_max_fixed should be 1 + 1/1.5 = 5/3. """
-
-        mb_solve_00 = mb_solve.MBSolve()
-
-        speed = 1.5 # speed of light
-        t_max_fixed_expected = mb_solve_00.t_max + 1/(speed*mb_solve_00.z_max)
-
-        t_max_fixed = mb_solve_00.tlist_fixed_frame(speed)[-1]
-
-        self.assertAlmostEqual(t_max_fixed, t_max_fixed_expected)
+        self.assertTrue(np.all(t_args[0]['tlist'] == mb_solve_00.tlist))
+        self.assertTrue(np.all(t_args[0]['ylist'] == Omegas_z/(2.0*np.pi)))
 
 
 def main():
 
-    suite = unittest.TestSuite()
-    # suite.addTest(TestBuildZlist("test_00"))
-    # suite.addTest(TestInsertFirstInnerZStep("test_00"))
-    suite.addTest(TestMBSolve("test_no_atoms"))
-    # suite.addTest(TestMBSolve("test_no_atoms_ab"))
-    runner = unittest.TextTestRunner()
-
+    # suite = unittest.TestSuite()
+    # suite.addTest(TestMBSolve("test_no_atoms"))
+    # runner = unittest.TextTestRunner()
     # runner.run(suite) # Run suite
 
     unittest.main(verbosity=3) # Run all

@@ -5,7 +5,6 @@ Thomas Ogden <t@ogden.eu>
 
 """
 
-import sys
 import os
 
 import unittest
@@ -98,7 +97,7 @@ class TestMBSolve(unittest.TestCase):
         mb_solve_nd.mbsolve()
 
     def test_no_rabi_freq_t_func(self):
-        """ Empty decay list. """
+        """ Empty decay list. TODO: No mbsolve, should be in init"""
 
         json_path = os.path.join(JSON_DIR, "mb_solve_no_rabi_freq_t_func.json")
         mbs = mb_solve.MBSolve().from_json(json_path)
@@ -120,7 +119,7 @@ class TestMBSolve(unittest.TestCase):
         mbs.mbsolve()
 
     def test_no_vel_classes_inner(self):
-        """ No inner delta values in dict. """
+        """ No inner delta values in dict. TODO: No mbsolve, should be init"""
 
         json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
         mbs = mb_solve.MBSolve().from_json(json_path)
@@ -136,7 +135,7 @@ class TestMBSolve(unittest.TestCase):
         mbs.mbsolve()
 
     def test_zero_thermal_width(self):
-
+        """TODO: No mbsolve, should be in init"""
         json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
         mbs = mb_solve.MBSolve().from_json(json_path)
 
@@ -151,8 +150,6 @@ class TestMBSolve(unittest.TestCase):
         }
 
         self.assertRaises(ValueError, mbs.build_velocity_classes, vc)
-
-        mbs.mbsolve()
 
 class TestSaveLoad(unittest.TestCase):
     """ Tests for the MBSolve save and load methods. """
@@ -249,17 +246,54 @@ class TestGetOmegasIntpTArgs(unittest.TestCase):
         self.assertTrue(np.all(t_args[0]['tlist'] == mb_solve_00.tlist))
         self.assertTrue(np.all(t_args[0]['ylist'] == Omegas_z/(2.0*np.pi)))
 
+class TestPopulations(unittest.TestCase):
 
-def main():
+    def test_twolevel_shape(self):
 
-    # suite = unittest.TestSuite()
-    # suite.addTest(TestMBSolve("test_no_atoms"))
-    # runner = unittest.TextTestRunner()
-    # runner.run(suite) # Run suite
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mbs = mb_solve.MBSolve().from_json(json_path)
 
-    unittest.main(verbosity=3) # Run all
+        pop_lower = mbs.populations([0])
+        pop_upper = mbs.populations([1])
 
-if __name__ == "__main__":
-    status = main()
-    sys.exit(status)
+        np.testing.assert_allclose(pop_lower, np.zeros((mbs.z_steps+1, 
+            mbs.t_steps+1)))
+        np.testing.assert_allclose(pop_upper, np.zeros((mbs.z_steps+1, 
+            mbs.t_steps+1)))
 
+class TestPopulationsField(unittest.TestCase):
+
+    def test_twolevel_shape(self):
+
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mbs = mb_solve.MBSolve().from_json(json_path)
+
+        pop_upper = mbs.populations_field(field_idx=0, upper=True)
+        pop_lower = mbs.populations_field(field_idx=0, upper=False)
+
+        np.testing.assert_allclose(pop_lower, np.zeros((mbs.z_steps+1, 
+            mbs.t_steps+1)))
+        np.testing.assert_allclose(pop_upper, np.zeros((mbs.z_steps+1, 
+            mbs.t_steps+1)))
+
+class TestCoherences(unittest.TestCase):
+
+    def test_twolevel_shape(self):
+
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mbs = mb_solve.MBSolve().from_json(json_path)
+        coh = mbs.coherences([[0, 1]])
+
+        np.testing.assert_allclose(coh, np.zeros((mbs.z_steps+1, 
+            mbs.t_steps+1)))
+
+class TestCoherencesField(unittest.TestCase):
+
+    def test_twolevel_shape(self):
+
+        json_path = os.path.join(JSON_DIR, "mb_solve_01.json")
+        mbs = mb_solve.MBSolve().from_json(json_path)
+        coh = mbs.coherences_field(field_idx=0)
+        
+        np.testing.assert_allclose(coh, np.zeros((mbs.z_steps+1, 
+            mbs.t_steps+1)))

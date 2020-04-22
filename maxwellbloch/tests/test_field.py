@@ -5,7 +5,6 @@ Thomas Ogden <t@ogden.eu>
 
 """
 
-import sys
 import unittest
 
 from maxwellbloch import field, t_funcs
@@ -40,6 +39,7 @@ class TestInit(unittest.TestCase):
         field_00 = field.Field()
 
         self.assertEqual(field_00.coupled_levels, [])
+        self.assertEqual(field_00.factors, [])
         self.assertEqual(field_00.detuning, 0.0)
         self.assertEqual(field_00.detuning_positive, True)
         self.assertEqual(field_00.label, '')
@@ -53,6 +53,22 @@ class TestInit(unittest.TestCase):
             self.assertEqual(field_00.rabi_freq_t_func(t, args), 
                              t_func(t, args))
 
+    def test_multiple_factors(self):
+
+        field_00 = field.Field(coupled_levels=[[0, 1], [0, 2]], factors=[])
+        self.assertEqual(field_00.factors, [1.0, 1.0])
+
+    def test_incorrect_num_factors(self):
+
+        with self.assertRaises(ValueError) as context:
+            field_00 = field.Field(coupled_levels=[[0, 1], [0, 2]], 
+                factors=[1.0])
+
+        self.assertTrue('The length of factors must be the same as the length ' 
+            'of coupled_levels.' in str(context.exception))
+
+        pass
+
     def test_to_from_json_str(self):
 
         field_00 = field.Field()
@@ -64,6 +80,7 @@ class TestInit(unittest.TestCase):
     def test_from_json_str(self):
 
         self.assertEqual(self.field_02.coupled_levels, [[1,2]])
+        self.assertEqual(self.field_02.factors, [1.0])
         self.assertEqual(self.field_02.detuning, 0.0)
         self.assertEqual(self.field_02.detuning_positive, True)
         self.assertEqual(self.field_02.label, 'coupling')
@@ -103,7 +120,7 @@ class TestBuildRabiFreqTFunc(unittest.TestCase):
         self.assertEqual(self.field_00.rabi_freq_t_func.__name__, 'square_0')
         args = self.field_00.rabi_freq_t_args
         for t in [0.1, 0.3, 0.5, 0.7, 0.9]:
-            self.assertEquals(self.field_00.rabi_freq_t_func(t, args),
+            self.assertEqual(self.field_00.rabi_freq_t_func(t, args),
                               t_funcs.square(0)(t, args))
 
         self.assertEqual(self.field_00.rabi_freq_t_args, {'ampl_0': 1.0,
@@ -118,7 +135,7 @@ class TestBuildRabiFreqTFunc(unittest.TestCase):
         self.assertEqual(self.field_00.rabi_freq_t_func.__name__, 'square_0')
         args = self.field_00.rabi_freq_t_args
         for t in [0.1, 0.3, 0.5, 0.7, 0.9]:
-            self.assertEquals(self.field_00.rabi_freq_t_func(t, args),
+            self.assertEqual(self.field_00.rabi_freq_t_func(t, args),
                               t_funcs.square(0)(t, args))
 
     def test_ramp_onoff(self):
@@ -131,25 +148,15 @@ class TestBuildRabiFreqTFunc(unittest.TestCase):
                          'ramp_onoff_12')
         args = self.field_00.rabi_freq_t_args
         for t in [0.1, 0.3, 0.5, 0.7, 0.9]:
-            self.assertEquals(self.field_00.rabi_freq_t_func(t, args),
+            self.assertEqual(self.field_00.rabi_freq_t_func(t, args),
                               t_funcs.ramp_onoff(12)(t, args))
 
     def test_undefined_t_func(self):
 
-        field_00 = field.Field()
+        self.field_00 = field.Field()
 
         with self.assertRaises(AttributeError) as context:
             self.field_00.build_rabi_freq_t_func('f')
 
-            print(str(context.exception))
-
-            self.assertTrue("module 'maxwellbloch.t_funcs' has no attribute 'f'"
-                        in str(context.exception))
-
-def main():
-    unittest.main(verbosity=3)
-    return 0
-
-if __name__ == "__main__":
-    status = main()
-    sys.exit(status)
+        self.assertTrue("module 'maxwellbloch.t_funcs' has no attribute 'f'"
+            in str(context.exception))
